@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DSA Desk — Bank Code & Matching System</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="lock" style="display:none;position:fixed;inset:0;z-index:500;background:#0d1117;
+     display:grid;place-items:center;padding:20px">
+  <div style="max-width:420px;width:100%;text-align:center">
+    <div style="font-size:42px;margin-bottom:6px">&#128274;</div>
+    <h2 style="margin:0 0 4px;font-size:20px">DSA Desk</h2>
+    <p style="color:#8b97a6;font-size:13px;margin:0 0 20px">
+      Noamaan Consultancy &middot; bank master &amp; matcher<br>
+      Enter your passphrase to unlock the lender data.</p>
+    <input type="password" id="lockPass" placeholder="Passphrase" autocomplete="current-password"
+      style="width:100%;padding:13px 15px;font-size:16px;background:#1c242e;border:1px solid #2a3542;
+             border-radius:9px;color:#e6edf3;outline:none;text-align:center">
+    <label style="display:flex;align-items:center;gap:8px;justify-content:center;
+                  color:#8b97a6;font-size:12px;margin:12px 0 16px">
+      <input type="checkbox" id="lockRemember" checked style="width:auto"> Stay unlocked in this tab
+    </label>
+    <button class="btn" id="lockGo" style="width:100%;padding:12px;font-size:15px">Unlock</button>
+    <div id="lockMsg" style="color:#f87171;font-size:13px;margin-top:12px;min-height:18px"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+
+<header>
+  <div class="logo">DSA Desk<small>Noamaan Consultancy · bank master &amp; matcher</small></div>
+  <nav>
+    <button data-view="search" class="on">Search</button>
+    <button data-view="match">Match a Case</button>
+    <button data-view="manage">Manage Banks</button>
+    <button data-view="import">Import</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+  <div class="spacer"></div>
+  <span class="count" id="count">0 banks</span>
+</header>
+
+<main>
+
+<!-- ================= SEARCH ================= -->
+<section class="view on" id="v-search">
+  <div class="searchbar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="q" type="text" placeholder="Search bank name, DSA code, product, city, contact…  (press /)" autocomplete="off">
+  </div>
+  <div class="chips" id="prodChips"></div>
+  <div id="results" class="grid"></div>
+</section>
+
+<!-- ================= MATCH ================= -->
+<section class="view" id="v-match">
+  <div class="card">
+    <h3>1 · Upload documents (optional)</h3>
+    <div class="drop" id="drop">
+      <b>Drop salary slips, ITR, CIBIL report, bank statement, KYC</b><br>
+      <span style="font-size:12px">PDF, image or text — or click to browse</span>
+      <input type="file" id="files" multiple hidden accept=".pdf,.txt,.csv,.png,.jpg,.jpeg,.webp">
+    </div>
+    <div class="filelist" id="filelist"></div>
+    <div class="btns">
+      <button class="btn" id="btnRead">Read documents &amp; fill form</button>
+      <button class="btn sec" id="btnClearFiles">Clear</button>
+      <span class="note" id="readStatus"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>2 · Case details</h3>
+    <div class="row">
+      <div><label class="f">Product</label><select id="c_product"></select></div>
+      <div><label class="f">Applicant profile</label><select id="c_profile"></select></div>
+      <div><label class="f">CIBIL score</label><input type="number" id="c_cibil" placeholder="e.g. 742"></div>
+      <div><label class="f">Age</label><input type="number" id="c_age" placeholder="e.g. 34"></div>
+      <div><label class="f">Monthly income ₹</label><input type="number" id="c_income" placeholder="e.g. 85000"></div>
+      <div><label class="f">Existing EMI ₹</label><input type="number" id="c_emi" placeholder="e.g. 12000"></div>
+      <div><label class="f">Loan required ₹</label><input type="number" id="c_loan" placeholder="e.g. 4500000"></div>
+      <div><label class="f">Property / asset value ₹</label><input type="number" id="c_prop" placeholder="e.g. 6500000"></div>
+      <div><label class="f">Tenure (years)</label><input type="number" id="c_tenure" value="20"></div>
+      <div><label class="f">Expected ROI %</label><input type="number" step="0.05" id="c_roi" placeholder="9.5"></div>
+      <div><label class="f">City</label><input type="text" id="c_city" placeholder="Mumbai"></div>
+      <div><label class="f">Employer category</label>
+        <select id="c_empcat"><option value="">Any</option><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+      <div><label class="f">Business vintage (yrs)</label><input type="number" id="c_vintage" placeholder="e.g. 5"></div>
+      <div><label class="f">ITR available?</label>
+        <select id="c_itr"><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
+      <div><label class="f">Banking-program case?</label>
+        <select id="c_banking"><option value="">No / unknown</option><option value="true">Yes</option></select></div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="btnMatch">Find best banks</button>
+      <button class="btn sec" id="btnResetCase">Reset</button>
+      <button class="btn sec" id="btnPrint">Print / PDF</button>
+    </div>
+    <div class="note" id="calcNote"></div>
+  </div>
+
+  <div id="matchResults"></div>
+</section>
+
+<!-- ================= MANAGE ================= -->
+<section class="view" id="v-manage">
+  <div class="card">
+    <h3>Bank master</h3>
+    <div class="btns" style="margin:0 0 12px">
+      <button class="btn" id="btnNewBank">+ Add bank</button>
+      <button class="btn sec" id="btnExportJson">Export JSON</button>
+      <button class="btn sec" id="btnExportCsv">Export CSV</button>
+      <button class="btn danger" id="btnWipe">Delete all</button>
+    </div>
+    <input type="text" id="mq" placeholder="Filter…" style="margin-bottom:10px">
+    <div class="scroll">
+      <table><thead><tr>
+        <th>Bank</th><th>DSA code</th><th>Products</th><th>CIBIL</th><th>Payout</th><th>ROI</th><th>TAT</th><th></th>
+      </tr></thead><tbody id="mbody"></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= IMPORT ================= -->
+<section class="view" id="v-import">
+  <div class="card">
+    <h3>Step 1 — bring your data in</h3>
+    <div class="drop" id="idrop">
+      <b>Drop your bank list: PDF, CSV, TSV, TXT or JSON</b><br>
+      <span style="font-size:12px">…or paste the table below</span>
+      <input type="file" id="ifile" hidden accept=".pdf,.csv,.tsv,.txt,.json">
+    </div>
+    <label class="f" style="margin-top:12px">Or paste rows (copy straight out of Excel / a PDF table)</label>
+    <textarea id="ipaste" placeholder="Bank Name&#9;DSA Code&#9;Product&#9;Min CIBIL&#9;Payout %&#10;HDFC Bank&#9;DSA-HDFC-00417&#9;Home Loan&#9;720&#9;0.85"></textarea>
+    <div class="btns">
+      <button class="btn" id="btnParse">Parse</button>
+      <span class="note" id="iStatus"></span>
+    </div>
+  </div>
+
+  <div class="card" id="mapCard" style="display:none">
+    <h3>Step 2 — map the columns</h3>
+    <label style="font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input type="checkbox" id="hasHeader" checked style="width:auto"> First row is a header
+    </label>
+    <div class="scroll" style="max-height:320px"><table id="mapTable"></table></div>
+    <div class="btns">
+      <button class="btn" id="btnImportMerge">Import &amp; merge</button>
+      <button class="btn sec" id="btnImportReplace">Import &amp; replace all</button>
+      <span class="note" id="mapStatus"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="view" id="v-settings">
+  <div class="card">
+    <h3>AI document reading (optional)</h3>
+    <p class="note" style="margin-top:0">Without a key the app still reads PDFs and text offline using pattern matching. With a key it understands scanned images and messy layouts far better. The key is stored only in this browser and is never committed to GitHub.</p>
+    <div class="row">
+      <div><label class="f">API key</label><input type="password" id="s_key" placeholder="sk-…"></div>
+      <div><label class="f">Model</label><input type="text" id="s_model" placeholder="gpt-4o-mini"></div>
+      <div style="grid-column:1/-1"><label class="f">Endpoint</label><input type="text" id="s_endpoint"></div>
+    </div>
+    <div class="btns"><button class="btn" id="btnSaveSettings">Save</button><span class="note" id="sStatus"></span></div>
+  </div>
+  <div class="card">
+    <h3>Backup</h3>
+    <p class="note" style="margin-top:0">Your data lives in this browser. Export regularly, and commit <code>data/banks.json</code> to GitHub so every device you open the site on starts with the full master.</p>
+    <div class="btns">
+      <button class="btn sec" id="btnExportJson2">Export banks.json</button>
+      <button class="btn sec" id="btnReseed">Reload from published data</button>
+      <button class="btn danger" id="btnLock">Lock &amp; sign out</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+</div>
+
+<dialog id="dlg"><div class="dlg-h"><h3 id="dlgTitle"></h3><button class="x" id="dlgX">×</button></div><div class="dlg-b" id="dlgBody"></div></dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# NEVER commit the plaintext lender master or the source payout PDF
+data/banks.json
+uploads/
+*.pdf
+
+.DS_Store
+node_modules/
+*.log
