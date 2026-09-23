@@ -111,6 +111,7 @@ Never commit `data/banks.json` — `.gitignore` blocks it. Only `data/banks.enc.
 index.html        UI
 extract.py        PDF -> banks.json extractor
 encrypt_data.py   banks.json -> encrypted banks.enc.json
+seed_eligibility.py  seeds indicative market norms (tagged, never overwrites yours)
 js/crypto.js      browser-side unlock (WebCrypto)
 styles.css        dark theme
 data/banks.enc.json  encrypted bank master (the only data file committed)
@@ -119,6 +120,27 @@ js/search.js      fuzzy search
 js/match.js       eligibility + scoring engine
 js/docs.js        PDF/image reading, offline + AI extraction
 js/importer.js    CSV/PDF parsing, column mapping, CSV export
+```
+
+## Data provenance
+
+Two grades of data, visibly distinguished in the UI:
+
+- **From your payout sheet** — DSA codes, payouts, products, billing entity. Reliable.
+- **`market-reference`** — CIBIL/FOIR/LTV/income/age norms seeded by `seed_eligibility.py`
+  from public sources. Shown with an amber **UNVERIFIED** badge. These are category-level
+  typicals, *not* lender credit policy: public sources contradict each other badly (HDFC min
+  income is published as both ₹10k and ₹25k; Bajaj's own site quotes LAP CIBIL as both 650
+  and 700). Only the RBI LTV slabs are regulatory and consistent.
+- **`desk-verified`** — anything you edit in Manage Banks. Green badge. `seed_eligibility.py`
+  never overwrites these.
+
+Unverified norms deliberately **cannot hard-reject** a lender — they only warn. A "Not
+eligible" verdict always rests on a fact from your own payout sheet.
+
+```bash
+python3 seed_eligibility.py          # fill blanks only (safe)
+python3 seed_eligibility.py --reset  # re-seed market-reference rows, keep desk-verified
 ```
 
 ## Tuning the matcher

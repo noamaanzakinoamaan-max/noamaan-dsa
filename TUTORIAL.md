@@ -104,15 +104,35 @@ in ₹** on that loan amount. **Print / PDF** gives you a clean shortlist for th
 The ranking isn't just eligibility — it weighs your payout, the client's ROI and the TAT, so
 the top suggestion is one worth actually doing.
 
-### ⚠️ The one limitation you must know
-Your payout PDF is a **commercial** document. It has payouts and codes — it has **no CIBIL
-cutoffs, FOIR caps, LTV limits or income norms**. I deliberately left those blank rather than
-invent numbers you might act on.
+### ⚠️ Green vs amber — the most important thing on this screen
 
-**So right now the matcher ranks mainly on payout and product fit.** To make the
-Strong fit / Deviation verdicts genuinely sharp, go to **Manage Banks**, open your top 15–20
-lenders, and fill in: Min CIBIL, Max FOIR %, Max LTV %, Min monthly income, Profiles, Min/Max
-loan. Twenty minutes of typing transforms this screen. Do the ones you use weekly first.
+Two very different grades of data sit side by side:
+
+| | Source | Trust |
+|---|---|---|
+| **DSA codes, payouts, products, billing entity** | Your own payout sheet | **Reliable** — use directly |
+| **CIBIL, FOIR, LTV, income, age, profiles** | Indicative market norms | **Verify before quoting** |
+
+Every eligibility field seeded from public data carries an amber **UNVERIFIED** badge. Why
+they're only indicative — I checked, and the public sources genuinely disagree:
+
+- HDFC minimum income: HDFC's own FAQ says **₹10,000**; aggregators say **₹25,000**
+- HDFC minimum CIBIL: quoted anywhere from **650 to 750** depending on the site
+- Bajaj LAP CIBIL: Bajaj's *own website* says **650** on one page and **700** on another
+- FOIR caps and employer-category grids are **never published** — internal credit policy
+
+Only the **RBI LTV slabs** (90% up to ₹30L, 80% ₹30–75L, 75% above ₹75L) were identical
+across every source, because they're regulatory.
+
+**Because of this, unverified norms never hard-reject a lender.** They produce an amber
+warning with the reason. A case only shows "Not eligible" on a fact from your own sheet —
+e.g. the lender doesn't offer that product at all.
+
+**Turning amber into green:** open a lender in **Manage Banks**, change an eligibility field
+to what your RM actually confirmed, and save. That field flips to a green **VERIFIED** badge
+and starts behaving as a hard rule. Re-running the seeder will never overwrite it.
+
+Do your top 15–20 lenders and this screen becomes genuinely decision-grade.
 
 ---
 
@@ -191,6 +211,7 @@ Re-run `encrypt_data.py` with a new one, commit, push. Everyone re-unlocks with 
 | Pick a lender for a client | Match a Case → fill details → Find best banks |
 | Give a client a shortlist | Match a Case → **Print / PDF** |
 | Fix wrong data | Manage Banks → Edit |
+| Confirm a norm with your RM | Manage Banks → Edit the field → saves as **verified** |
 | Back it up | Manage Banks → Export JSON |
 | Push changes live | Export JSON → `encrypt_data.py` → commit → push |
 | Wipe data off a device | Settings → Lock & sign out |

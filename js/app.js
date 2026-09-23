@@ -89,7 +89,12 @@ function openBank(id) {
   const b = Store.banks.find((x) => x.id === id);
   if (!b) return;
   const e = b.eligibility, c = b.contact, o = b.ops;
-  const kv = (k, v) => `<dt>${k}</dt><dd>${v === null || v === undefined || v === "" ? "—" : esc(v)}</dd>`;
+  const prov = b.provenance || {};
+  const badge = (key) => prov[key] === "market-reference"
+    ? '<span class="unv" title="Indicative market norm, not confirmed with the lender">unverified</span>'
+    : prov[key] === "desk-verified"
+      ? '<span class="ver" title="You confirmed this">verified</span>' : "";
+  const kv = (k, v, key) => `<dt>${k}${key ? badge(key) : ""}</dt><dd>${v === null || v === undefined || v === "" ? "—" : esc(v)}</dd>`;
   $("#dlgTitle").textContent = b.name;
   $("#dlgBody").innerHTML = `
     <div class="card" style="margin:0 0 14px">
@@ -109,12 +114,18 @@ function openBank(id) {
       <div id="slabBox"></div></div>`
     : `<div class="card" style="margin:0 0 14px"><h3>Payout</h3>
       <dl class="kv">${Object.entries(b.payout).map(([k, v]) => kv(k, v + " %")).join("") || kv("Payout", "")}</dl></div>`}
-    <div class="card" style="margin:0 0 14px"><h3>Eligibility</h3><dl class="kv">
-      ${kv("Min CIBIL", e.minCibil)}${kv("Age", (e.minAgeYears ?? "—") + " – " + (e.maxAgeYears ?? "—"))}
-      ${kv("Min monthly income", e.minMonthlyIncome ? "₹" + fmt(e.minMonthlyIncome) : "")}
+    <div class="card" style="margin:0 0 14px"><h3>Eligibility</h3>
+      ${Object.values(prov).some((v) => v === "market-reference")
+        ? `<div class="banner"><b>Indicative norms.</b> Amber fields are typical market
+           values compiled from public sources — <b>not ${esc(b.name)}'s credit policy</b>.
+           Public sources disagree widely on these. Confirm with your RM, then edit the
+           field here to mark it verified.</div>` : ""}
+      <dl class="kv">
+      ${kv("Min CIBIL", e.minCibil, "minCibil")}${kv("Age", (e.minAgeYears ?? "—") + " – " + (e.maxAgeYears ?? "—"), "minAgeYears")}
+      ${kv("Min monthly income", e.minMonthlyIncome ? "₹" + fmt(e.minMonthlyIncome) : "", "minMonthlyIncome")}
       ${kv("Ticket size", (e.minLoanAmount ? "₹" + fmt(e.minLoanAmount) : "—") + " – " + (e.maxLoanAmount ? "₹" + fmt(e.maxLoanAmount) : "—"))}
-      ${kv("Max FOIR", e.maxFoirPct ? e.maxFoirPct + " %" : "")}${kv("Max LTV", e.maxLtvPct ? e.maxLtvPct + " %" : "")}
-      ${kv("Profiles", e.profiles.join(", "))}${kv("Employer cat", e.employerCategory.join(", "))}
+      ${kv("Max FOIR", e.maxFoirPct ? e.maxFoirPct + " %" : "", "maxFoirPct")}${kv("Max LTV", e.maxLtvPct ? e.maxLtvPct + " %" : "", "maxLtvPct")}
+      ${kv("Profiles", e.profiles.join(", "), "profiles")}${kv("Employer cat", e.employerCategory.join(", "))}
       ${kv("Min vintage", e.minVintageYears ? e.minVintageYears + " yrs" : "")}
       ${kv("ITR-based", e.acceptsItrOnly === null ? "" : e.acceptsItrOnly ? "Yes" : "No")}
       ${kv("Banking program", e.acceptsBankingProgram === null ? "" : e.acceptsBankingProgram ? "Yes" : "No")}
@@ -176,8 +187,28 @@ function editBank(id) {
     ${id ? '<button class="btn danger" id="delBank">Delete</button>' : ""}</div>`;
   $("#dlg").showModal();
   $("#saveBank").onclick = () => {
-    const o2 = { id: id || "" };
-    $$("#dlgBody [data-k]").forEach((el) => { if (el.value !== "") o2[el.dataset.k] = el.value; });
+    const o2 = { id: id || "", provenance: { ...(b.provenance || {}) } };
+    const FMAP = { minCibil:"minCibil", minAge:"minAgeYears", maxAge:"maxAgeYears",
+      minMonthlyIncome:"minMonthlyIncome", minLoanAmount:"minLoanAmount",
+      maxLoanAmount:"maxLoanAmount", maxFoirPct:"maxFoirPct", maxLtvPct:"maxLtvPct",
+      profiles:"profiles", employerCategory:"employerCategory", vintage:"minVintageYears",
+      cities:"cities" };
+    const before = {
+      minCibil:e.minCibil, minAge:e.minAgeYears, maxAge:e.maxAgeYears,
+      minMonthlyIncome:e.minMonthlyIncome, minLoanAmount:e.minLoanAmount,
+      maxLoanAmount:e.maxLoanAmount, maxFoirPct:e.maxFoirPct, maxLtvPct:e.maxLtvPct,
+      profiles:e.profiles.join(", "), employerCategory:e.employerCategory.join(", "),
+      vintage:e.minVintageYears, cities:e.cities.join(", ")
+    };
+    $$("#dlgBody [data-k]").forEach((el) => {
+      if (el.value !== "") o2[el.dataset.k] = el.value;
+      const canon = FMAP[el.dataset.k];
+      if (canon) {
+        const was = before[el.dataset.k];
+        const wasS = was === null || was === undefined ? "" : String(was);
+        if (String(el.value).trim() !== wasS.trim()) o2.provenance[canon] = "desk-verified";
+      }
+    });
     if (!o2.name) return toast("Bank name is required");
     if (!id) o2.id = slug(o2.name) + "-" + Math.random().toString(36).slice(2, 5);
     Store.upsert(o2);
@@ -287,7 +318,13 @@ $("#btnMatch").onclick = () => {
   const ranked = rank(Store.banks, c);
   const eligible = ranked.filter((r) => r.verdict !== "Not eligible");
   const top = ranked.slice(0, 40);
-  $("#matchResults").innerHTML = `<div class="card"><h3>Recommendation</h3>
+  const anyUnv = ranked.some((x) => x.unverifiedCount);
+  $("#matchResults").innerHTML = (anyUnv ? `<div class="banner">
+      <b>Read this before you quote a client.</b> Eligibility norms here are indicative
+      market typicals, not lender credit policy — public sources disagree materially on
+      them. Payouts and DSA codes come from your own payout sheet and are reliable.
+      Treat the ranking as a shortlist to verify, not a decision.</div>` : "")
+    + `<div class="card"><h3>Recommendation</h3>
       <div>${eligible.length} of ${ranked.length} lenders can take this file. ${
         eligible.length ? `Best fit: <b>${esc(eligible[0].bank.name)}</b> — ${esc(eligible[0].bank.dsaCode || "no code")}.` : "None clear on current rules — consider a deviation or banking-program lender."
       }</div></div>` + top.map((r, i) => resultCard(r, i)).join("");
@@ -318,6 +355,8 @@ function resultCard(r, i) {
     </div>
     <div class="bar"><i style="width:${r.score}%"></i></div>
     <div class="reasons">
+      ${r.unverifiedCount && (r.fails.length || r.warns.length)
+        ? `<div style="color:#fbbf24;font-size:11.5px;padding-left:0">⚠ Based on indicative norms — confirm with the lender</div>` : ""}
       ${r.fails.map((x) => `<div class="r-bad">${esc(x)}</div>`).join("")}
       ${r.warns.map((x) => `<div class="r-warn">${esc(x)}</div>`).join("")}
       ${r.plus.slice(0, 3).map((x) => `<div class="r-ok">${esc(x)}</div>`).join("")}

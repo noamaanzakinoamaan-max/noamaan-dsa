@@ -118,3 +118,14 @@ dialog::backdrop{background:rgba(0,0,0,.65)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);
   border:1px solid var(--line);padding:11px 20px;border-radius:9px;z-index:200;box-shadow:0 8px 28px rgba(0,0,0,.5)}
 @media print{header,nav,.btns,.searchbar,.chips{display:none}body{background:#fff;color:#000}}
+
+/* provenance */
+.unv{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.5px;
+  background:#33240a;color:#fbbf24;border:1px solid #92400e;border-radius:4px;
+  padding:1px 5px;margin-left:6px;vertical-align:middle;text-transform:uppercase}
+.ver{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.5px;
+  background:#0c2f1b;color:#4ade80;border:1px solid #166534;border-radius:4px;
+  padding:1px 5px;margin-left:6px;vertical-align:middle;text-transform:uppercase}
+.banner{background:#33240a;border:1px solid #92400e;color:#fbbf24;font-size:12.5px;
+  padding:10px 14px;border-radius:8px;margin-bottom:14px;line-height:1.5}
+.banner b{color:#fde68a}

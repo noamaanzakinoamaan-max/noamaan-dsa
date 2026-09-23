@@ -16,7 +16,7 @@ const SETTINGS_KEY = "dsadesk.settings.v1";
 
 export const blankBank = () => ({
   id: "", name: "", category: "", products: [], dsaCode: "", channelCode: "",
-  payout: {}, offerings: [],
+  payout: {}, offerings: [], provenance: {},
   eligibility: {
     minCibil: null, minAgeYears: null, maxAgeYears: null, minMonthlyIncome: null,
     minLoanAmount: null, maxLoanAmount: null, maxFoirPct: null, maxLtvPct: null,
@@ -72,6 +72,7 @@ export function normaliseBank(raw, i = 0) {
   b.dsaCode = String(raw.dsaCode || raw.dsa || raw.code || "").trim();
   b.channelCode = String(raw.channelCode || raw.channel || "").trim();
   b.notes = String(raw.notes || raw.remarks || "").trim();
+  b.provenance = (raw.provenance && typeof raw.provenance === "object") ? { ...raw.provenance } : {};
   b.offerings = Array.isArray(raw.offerings) ? raw.offerings.map((o) => ({
     product: String(o.product || ""),
     baseProduct: String(o.baseProduct || o.product || "").split(" — ")[0],

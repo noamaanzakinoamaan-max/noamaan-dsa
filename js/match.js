@@ -14,6 +14,8 @@ const ciLoose = (arr, v) =>
 
 export function evaluate(bank, c) {
   const e = bank.eligibility;
+  const prov = bank.provenance || {};
+  const unverified = (k) => prov[k] === "market-reference";
   const fails = [], warns = [], plus = [];
   let score = 22;
 
@@ -29,26 +31,37 @@ export function evaluate(bank, c) {
   // cibil
   if (has(c.cibil) && has(e.minCibil)) {
     const gap = c.cibil - e.minCibil;
-    if (gap < -30) fails.push(`CIBIL ${c.cibil} vs required ${e.minCibil}`);
-    else if (gap < 0) warns.push(`CIBIL ${c.cibil} is ${-gap} below norm ${e.minCibil} — deviation needed`), score -= 18;
+    const tag = unverified("minCibil") ? " (indicative)" : "";
+    if (gap < -30 && !unverified("minCibil")) fails.push(`CIBIL ${c.cibil} vs required ${e.minCibil}`);
+    else if (gap < -30) warns.push(`CIBIL ${c.cibil} well below typical ${e.minCibil}${tag}`), score -= 30;
+    else if (gap < 0) warns.push(`CIBIL ${c.cibil} is ${-gap} below norm ${e.minCibil}${tag} — deviation needed`), score -= 18;
     else { score += Math.min(20, gap / 5); plus.push(`CIBIL comfortably above ${e.minCibil}`); }
   }
 
   // age
   if (has(c.age)) {
-    if (has(e.minAgeYears) && c.age < e.minAgeYears) fails.push(`Age ${c.age} below min ${e.minAgeYears}`);
-    if (has(e.maxAgeYears) && c.age > e.maxAgeYears) fails.push(`Age ${c.age} above max ${e.maxAgeYears}`);
+    const ageSoft = unverified("minAgeYears") || unverified("maxAgeYears");
+    if (has(e.minAgeYears) && c.age < e.minAgeYears)
+      ageSoft ? (warns.push(`Age ${c.age} below typical ${e.minAgeYears} (indicative)`), score -= 15)
+              : fails.push(`Age ${c.age} below min ${e.minAgeYears}`);
+    if (has(e.maxAgeYears) && c.age > e.maxAgeYears)
+      ageSoft ? (warns.push(`Age ${c.age} above typical ${e.maxAgeYears} (indicative)`), score -= 15)
+              : fails.push(`Age ${c.age} above max ${e.maxAgeYears}`);
   }
 
   // profile
   if (has(c.profile) && e.profiles.length) {
-    if (!ci(e.profiles, c.profile)) fails.push(`${c.profile} profile not accepted`);
+    if (!ci(e.profiles, c.profile) && !unverified("profiles")) fails.push(`${c.profile} profile not accepted`);
+    else if (!ci(e.profiles, c.profile)) warns.push(`${c.profile} may not be accepted (indicative)`), score -= 15;
     else score += 8;
   }
 
   // income
   if (has(c.monthlyIncome) && has(e.minMonthlyIncome)) {
-    if (c.monthlyIncome < e.minMonthlyIncome * 0.85) fails.push(`Income ₹${fmt(c.monthlyIncome)} below min ₹${fmt(e.minMonthlyIncome)}`);
+    if (c.monthlyIncome < e.minMonthlyIncome * 0.85 && !unverified("minMonthlyIncome"))
+      fails.push(`Income ₹${fmt(c.monthlyIncome)} below min ₹${fmt(e.minMonthlyIncome)}`);
+    else if (c.monthlyIncome < e.minMonthlyIncome * 0.85)
+      warns.push(`Income ₹${fmt(c.monthlyIncome)} below typical ₹${fmt(e.minMonthlyIncome)} (indicative)`), score -= 20;
     else if (c.monthlyIncome < e.minMonthlyIncome) warns.push(`Income marginally below min ₹${fmt(e.minMonthlyIncome)}`), score -= 10;
     else score += 8;
   }
@@ -62,7 +75,8 @@ export function evaluate(bank, c) {
   // FOIR
   const foir = computeFoir(c);
   if (foir !== null && has(e.maxFoirPct)) {
-    if (foir > e.maxFoirPct + 8) fails.push(`FOIR ${foir.toFixed(0)}% vs cap ${e.maxFoirPct}%`);
+    if (foir > e.maxFoirPct + 8 && !unverified("maxFoirPct")) fails.push(`FOIR ${foir.toFixed(0)}% vs cap ${e.maxFoirPct}%`);
+    else if (foir > e.maxFoirPct + 8) warns.push(`FOIR ${foir.toFixed(0)}% over typical ${e.maxFoirPct}% (indicative)`), score -= 22;
     else if (foir > e.maxFoirPct) warns.push(`FOIR ${foir.toFixed(0)}% slightly over cap ${e.maxFoirPct}%`), score -= 12;
     else { score += 10; plus.push(`FOIR ${foir.toFixed(0)}% within ${e.maxFoirPct}% cap`); }
   }
@@ -70,7 +84,8 @@ export function evaluate(bank, c) {
   // LTV
   const ltv = computeLtv(c);
   if (ltv !== null && has(e.maxLtvPct) && e.maxLtvPct > 0) {
-    if (ltv > e.maxLtvPct + 5) fails.push(`LTV ${ltv.toFixed(0)}% vs cap ${e.maxLtvPct}%`);
+    if (ltv > e.maxLtvPct + 5 && !unverified("maxLtvPct")) fails.push(`LTV ${ltv.toFixed(0)}% vs cap ${e.maxLtvPct}%`);
+    else if (ltv > e.maxLtvPct + 5) warns.push(`LTV ${ltv.toFixed(0)}% over typical ${e.maxLtvPct}% (indicative)`), score -= 22;
     else if (ltv > e.maxLtvPct) warns.push(`LTV ${ltv.toFixed(0)}% marginally over ${e.maxLtvPct}%`), score -= 10;
     else { score += 8; plus.push(`LTV ${ltv.toFixed(0)}% OK (cap ${e.maxLtvPct}%)`); }
   }
@@ -129,6 +144,8 @@ export function evaluate(bank, c) {
     bank, score: Math.round(Math.max(0, Math.min(100, score))),
     verdict, fails, warns, plus, foir, ltv, payout,
     code: codeFor(bank, c.product), offering,
+    unverifiedCount: Object.values(prov).filter((v) => v === "market-reference").length,
+    hasVerified: Object.values(prov).some((v) => v === "desk-verified"),
     estPayoutAmount: payout !== null && has(c.loanAmount) ? (c.loanAmount * payout) / 100 : null
   };
 }
