@@ -1,7 +1,14 @@
 # DSA Desk
 
 Bank master + DSA code lookup + case-to-lender matching, built for Noamaan Consultancy.
-Pure static site — no backend, no build step. Works on GitHub Pages.
+Pure static site — no backend, no build step.
+
+**Live:** https://noamaanzakinoamaan-max.github.io/noamaan-dsa/
+**[→ Full tutorial](TUTORIAL.md)**
+
+The lender data in this repo is **AES-256-GCM encrypted** (PBKDF2-SHA256, 250k iterations).
+The site asks for a passphrase and decrypts in the browser. The plaintext master and the
+source payout PDF are git-ignored and have never been committed.
 
 ## What it does
 
@@ -88,17 +95,25 @@ git push -u origin main
 Then **Settings → Pages → Source: Deploy from a branch → main / (root) → Save**.
 Live in a minute at `https://<you>.github.io/dsa-desk/`.
 
-Your bank data is public if the repo is public — **make the repo private** and use Pages on a
-paid plan, or keep `data/banks.json` with sample rows only and load your real master through
-the Import tab on each device (it persists in that browser).
+### Publishing data changes
+
+```bash
+# Manage Banks -> Export JSON -> save over data/banks.json
+python3 encrypt_data.py "your passphrase"
+git add -A && git commit -m "Updated lender data" && git push
+```
+
+Never commit `data/banks.json` — `.gitignore` blocks it. Only `data/banks.enc.json` ships.
 
 ## Files
 
 ```
 index.html        UI
 extract.py        PDF -> banks.json extractor
+encrypt_data.py   banks.json -> encrypted banks.enc.json
+js/crypto.js      browser-side unlock (WebCrypto)
 styles.css        dark theme
-data/banks.json   bank master (replace with yours)
+data/banks.enc.json  encrypted bank master (the only data file committed)
 js/store.js       data model, normalisation, persistence
 js/search.js      fuzzy search
 js/match.js       eligibility + scoring engine
